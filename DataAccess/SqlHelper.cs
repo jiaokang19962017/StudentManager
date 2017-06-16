@@ -16,7 +16,30 @@ namespace DataAccess
         /// <summary>
         /// 设置连接字符串
         /// </summary>
-        private static readonly string strConn = ConfigurationManager.ConnectionStrings["ConStr"].ConnectionString;
+        private static readonly string strConn = ConfigurationManager.ConnectionStrings["ConnStr"].ConnectionString;
+        /// <summary>
+        /// 生命一个sqltransaction对象
+        /// </summary>
+        private static SqlTransaction tran;
+        /// <summary>
+        /// 声明一个sqlcnnection对象
+        /// </summary>
+        private static SqlConnection conn;
+        /// <summary>
+        /// 返回连接对象
+        /// </summary>
+        public static SqlConnection Conn
+        {
+            get
+            {
+                if (conn == null)
+                {
+                    conn = new SqlConnection(strConn);
+                }
+                return conn;
+            }
+        }
+
         /// <summary>
         /// 执行增删改
         /// </summary>
@@ -139,7 +162,7 @@ namespace DataAccess
         /// <returns>返回DataSet</returns>
         public static DataSet ExecuteDataSet(CommandType cmdType, string strsql, params SqlParameter[] param)
         {
-            SqlConnection con = new SqlConnection();
+            SqlConnection con = new SqlConnection(strConn);
 
             try
             {
@@ -156,16 +179,71 @@ namespace DataAccess
             }
             catch (Exception ex)
             {
-
-                throw;
+                Console.WriteLine(ex.Message);
+                return null;
             }
             finally
             {
-
+                con.Close();
             }
 
         }
-        
+        /// <summary>
+        /// 查询dataTable
+        /// </summary>
+        /// <param name="cmdType">命令类型</param>
+        /// <param name="strsql">sql语句</param>
+        /// <param name="param">传递的参数</param>
+        /// <returns>返回datatable</returns>
+        public static DataTable ExecuteDataTable(CommandType cmdType, string strsql, params SqlParameter[] param)
+        {
+            DataSet ds = ExecuteDataSet(cmdType, strsql, param);
+            return ds.Tables[0];
+        }
 
+     /// <summary>
+     /// 事务操作
+     /// </summary>
+     /// <param name="cmdType">命令类型</param>
+     /// <param name="strsql">sql语句</param>
+     /// <param name="param">传递的参数</param>
+        public static void ExecuteTransaction(CommandType cmdType, string strsql, params SqlParameter[] param)
+        {
+            SqlCommand cmd = new SqlCommand(strsql, conn);
+            cmd.CommandType = cmdType;
+            if (param != null)
+            {
+                cmd.Parameters.AddRange(param);//添加参数
+            }
+            if (tran != null)
+            {
+                cmd.Transaction = tran;//设置事务
+            }
+        }
+        /// <summary>
+        /// 打开事务
+        /// </summary>
+        public static void BeginTransaction()
+        {
+            Conn.Open();
+            tran = conn.BeginTransaction();//开启事务
+        }
+        /// <summary>
+        /// 提交事务
+        /// </summary>
+        public static void CommitTransaction()
+        {
+            tran.Commit();//提交事务
+            Conn.Close();//关闭连接
+        }
+
+        /// <summary>
+        /// 回滚事务
+        /// </summary>
+        public static void RollBackTransaction()
+        {
+            tran.Rollback();//回滚事务
+            Conn.Close();
+        }
         }
     }
